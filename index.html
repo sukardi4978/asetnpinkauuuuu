@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pencarian Aset</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: url('https://upload.wikimedia.org/wikipedia/commons/f/f8/KRL_Commuterline_Jabodetabek.jpg') no-repeat center center fixed;
+    background-size: cover;
+    background-color: #f9f9f9;
+  }
+  .overlay {
+    background-color: rgba(255,255,255,0.85);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .search-box {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 20px;
+  }
+  .search-box input {
+    width: 150px;
+    padding: 8px;
+    font-size: 16px;
+  }
+  .search-box button {
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+  .result {
+    font-size: 16px;
+    background: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  .result-line {
+    display: flex;
+    align-items: flex-start;
+  }
+  .label {
+    width: 150px;
+    font-weight: bold;
+  }
+  .colon {
+    margin-right: 8px;
+  }
+  .autocomplete-items {
+    border: 1px solid #ccc;
+    border-top: none;
+    max-height: 150px;
+    overflow-y: auto;
+    background: white;
+    position: absolute;
+    z-index: 99;
+    width: 150px;
+  }
+  .autocomplete-items div {
+    padding: 8px;
+    cursor: pointer;
+  }
+  .autocomplete-items div:hover {
+    background-color: #f1f1f1;
+  }
+</style>
+</head>
+<body>
+<div class="overlay">
+  <div class="search-box">
+    <div style="position:relative;">
+      <input type="text" id="kodeInput" maxlength="12" placeholder="Kode aset...">
+      <div id="autocomplete-list" class="autocomplete-items"></div>
+    </div>
+    <button onclick="searchAsset()">🔍</button>
+  </div>
+  <div id="result" class="result"></div>
+</div>
+<script>
+const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTafvAiaKbaQt2RIboLf9nY6v8mltXLhSN4R-l-LZGFmic1p0-83knr-g-bFEoPDB8Rl2T661YdYFTj/pub?gid=1753334008&single=true&output=csv";
+let assets = [];
+
+fetch(csvUrl)
+  .then(res => res.text())
+  .then(text => {
+    const rows = text.split(/\r?\n/).map(line => line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g)?.map(c => c.replace(/^"|"$/g,'')));
+    rows.shift();
+    assets = rows.map(r => ({
+      kode: r[4]?.trim(),
+      deskripsi: r[5] || "",
+      kapitalisasi: r[6] || "",
+      nilai: r[7] || "",
+      lokasi: r[13] || "",
+      detail: r[14] || "",
+      opname: r[10] || r[9] || "",
+      keterangan: r[15] || ""
+    }));
+  });
+
+document.getElementById('kodeInput').addEventListener('input', function() {
+  const val = this.value;
+  const list = document.getElementById('autocomplete-list');
+  list.innerHTML = '';
+  if (val.length >= 8) {
+    let searchVal = val;
+    if (val.length === 8) searchVal += "-0";
+    const matches = assets.filter(a => a.kode && a.kode.startsWith(searchVal)).slice(0,10);
+    matches.forEach(m => {
+      const div = document.createElement('div');
+      div.textContent = m.kode;
+      div.onclick = () => {
+        document.getElementById('kodeInput').value = m.kode;
+        list.innerHTML = '';
+        searchAsset();
+      };
+      list.appendChild(div);
+    });
+  }
+});
+
+document.getElementById('kodeInput').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') {
+    searchAsset();
+  }
+});
+
+function searchAsset() {
+  let kode = document.getElementById('kodeInput').value.trim();
+  if (kode.length === 8) kode += "-0";
+  const asset = assets.find(a => a.kode === kode);
+  const resultDiv = document.getElementById('result');
+  if (!asset) {
+    resultDiv.textContent = "Data tidak ditemukan.";
+    return;
+  }
+  resultDiv.innerHTML = `
+    <div class="result-line"><div class="label">Kode Aset</div><div class="colon">:</div><div>${asset.kode}</div></div>
+    <div class="result-line"><div class="label">Deskripsi</div><div class="colon">:</div><div>${asset.deskripsi}</div></div>
+    <div class="result-line"><div class="label">Kapitalisasi</div><div class="colon">:</div><div>${asset.kapitalisasi}</div></div>
+    <div class="result-line"><div class="label">Nilai Perolehan</div><div class="colon">:</div><div>${asset.nilai}</div></div>
+    <div class="result-line"><div class="label">Lokasi</div><div class="colon">:</div><div>${asset.lokasi}</div></div>
+    <div class="result-line"><div class="label">Detail Lokasi</div><div class="colon">:</div><div>${asset.detail}</div></div>
+    <div class="result-line"><div class="label">Opname Terakhir</div><div class="colon">:</div><div>${asset.opname}</div></div>
+    <div>${asset.keterangan}</div>
+  `;
+}
+</script>
+</body>
+</html>
